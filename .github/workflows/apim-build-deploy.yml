@@ -28,7 +28,11 @@ env:
 jobs:
   build:
     name: Build APIM project
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]   # macOS 14 = Apple Silicon (ARM64)
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout
