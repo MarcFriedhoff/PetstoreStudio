@@ -23,7 +23,7 @@ env:
   # Common CLI env (edit to your needs or move to repo/env secrets)
   # If your project needs a specific working dir, set APIM_WORKDIR accordingly.
   APIM_WORKDIR: .
-  NODE_VERSION: "20.x"
+  NODE_VERSION: "20.15.0"
 
 jobs:
   build:
@@ -50,7 +50,7 @@ jobs:
           npx -y @apistudio/apim-cli --version
           # Adjust flags/paths as your project requires.
           # Example assumes the CLI exposes "build project"
-          npx -y @apistudio/apim-cli build project
+          npx -y @apistudio/apim-cli build --all --localDir . --output ./builds/project_build.zip
 
       # If the CLI generates build artifacts (e.g., ./build or ./dist),
       # upload them so the deploy job can use exactly what was built.
