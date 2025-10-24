@@ -1,0 +1,138 @@
+name: APIM Build & Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "prod"
+        type: choice
+        options: [dev, test, prod]
+
+concurrency:
+  group: apim-${{ github.ref }}-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  # Common CLI env (edit to your needs or move to repo/env secrets)
+  # If your project needs a specific working dir, set APIM_WORKDIR accordingly.
+  APIM_WORKDIR: .
+  NODE_VERSION: "20.x"
+
+jobs:
+  build:
+    name: Build APIM project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # If you have a package.json and want a full install, uncomment:
+      # - name: Install deps
+      #   run: npm ci
+
+      - name: Build with apim-cli
+        working-directory: ${{ env.APIM_WORKDIR }}
+        run: |
+          npx -y @apistudio/apim-cli --version
+          # Adjust flags/paths as your project requires.
+          # Example assumes the CLI exposes "build project"
+          npx -y @apistudio/apim-cli build project
+
+      # If the CLI generates build artifacts (e.g., ./build or ./dist),
+      # upload them so the deploy job can use exactly what was built.
+      - name: Upload build artifacts
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: apim-build
+          path: |
+            build/**
+            dist/**
+            ./**/build/**
+            ./**/dist/**
+          if-no-files-found: ignore
+
+  deploy:
+    name: Deploy APIM project
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.environment || 'prod' }}
+
+    # Prevent accidental parallel deploys to the same env
+    concurrency:
+      group: apim-deploy-${{ inputs.environment || 'prod' }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout (for any config files needed at deploy)
+        uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: apim-build
+          path: ./_apim_build
+
+      - name: Show artifact contents (debug)
+        run: |
+          ls -la ./_apim_build || true
+          du -sh ./_apim_build || true
+
+      # 🔐 Provide your deployment credentials/endpoint via GitHub Secrets.
+      # Replace variables and flags to match your APIM endpoint & CLI syntax.
+      - name: Deploy with apim-cli
+        env:
+          # Typical secrets you might set at repo or environment level
+          APIM_BASE_URL: ${{ secrets.APIM_BASE_URL }}            # e.g. https://apim.example.com
+          APIM_ORG:       ${{ secrets.APIM_ORG }}                # optional org/tenant
+          APIM_USERNAME:  ${{ secrets.APIM_USERNAME }}           # if using basic auth
+          APIM_PASSWORD:  ${{ secrets.APIM_PASSWORD }}           # if using basic auth
+          APIM_TOKEN:     ${{ secrets.APIM_TOKEN }}              # if using token/bearer
+        run: |
+          # Adjust to the actual auth method your CLI supports:
+          AUTH_FLAGS=""
+          if [ -n "$APIM_TOKEN" ]; then
+            AUTH_FLAGS="--token \"$APIM_TOKEN\""
+          elif [ -n "$APIM_USERNAME" ] && [ -n "$APIM_PASSWORD" ]; then
+            AUTH_FLAGS="--username \"$APIM_USERNAME\" --password \"$APIM_PASSWORD\""
+          fi
+
+          ORG_FLAG=""
+          if [ -n "$APIM_ORG" ]; then
+            ORG_FLAG="--org \"$APIM_ORG\""
+          fi
+
+          # If deploy needs the built folder, point to it (change to your required path/flag)
+          BUILD_PATH_FLAG="--path ./_apim_build"
+
+          echo "apim-cli version:"
+          npx -y @apistudio/apim-cli --version
+
+          echo "Deploying to: $APIM_BASE_URL"
+          # Example assumes the CLI exposes "deploy project"
+          # Add extra flags your platform requires (stage, env, region, etc.)
+          npx -y @apistudio/apim-cli deploy project \
+            --url "$APIM_BASE_URL" \
+            $ORG_FLAG \
+            $AUTH_FLAGS \
+            $BUILD_PATH_FLAG
