@@ -20,8 +20,6 @@ permissions:
   contents: read
 
 env:
-  # Common CLI env (edit to your needs or move to repo/env secrets)
-  # If your project needs a specific working dir, set APIM_WORKDIR accordingly.
   APIM_WORKDIR: .
   NODE_VERSION: "20.15.0"
 
@@ -29,44 +27,43 @@ jobs:
   build:
     name: Build APIM project
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ env.NODE_VERSION }}
+      # Use cache only if a lockfile exists to avoid "Dependencies lock file is not found"
+      - name: Setup Node.js (with cache)
+        if: ${{ hashFiles(format('{0}/package-lock.json', env.APIM_WORKDIR), format('{0}/npm-shrinkwrap.json', env.APIM_WORKDIR), format('{0}/yarn.lock', env.APIM_WORKDIR)) != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
+          cache-dependency-path: |
+            ${{ env.APIM_WORKDIR }}/package-lock.json
+            ${{ env.APIM_WORKDIR }}/npm-shrinkwrap.json
+            ${{ env.APIM_WORKDIR }}/yarn.lock
 
-      # If you have a package.json and want a full install, uncomment:
-      # - name: Install deps
-      #   run: npm ci
+      - name: Setup Node.js (no cache)
+        if: ${{ hashFiles(format('{0}/package-lock.json', env.APIM_WORKDIR), format('{0}/npm-shrinkwrap.json', env.APIM_WORKDIR), format('{0}/yarn.lock', env.APIM_WORKDIR)) == '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Build with apim-cli
         working-directory: ${{ env.APIM_WORKDIR }}
         run: |
           npx -y @apistudio/apim-cli --version
-          # Adjust flags/paths as your project requires.
-          # Example assumes the CLI exposes "build project"
+          mkdir -p builds
           npx -y @apistudio/apim-cli build --all --localDir . --output ./builds/project_build.zip
+          ls -la builds
 
-      # If the CLI generates build artifacts (e.g., ./build or ./dist),
-      # upload them so the deploy job can use exactly what was built.
       - name: Upload build artifacts
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: apim-build
-          path: |
-            build/**
-            dist/**
-            ./**/build/**
-            ./**/dist/**
-          if-no-files-found: ignore
+          path: builds/project_build.zip
+          if-no-files-found: error
 
   deploy:
     name: Deploy APIM project
@@ -74,14 +71,11 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ inputs.environment || 'prod' }}
-
-    # Prevent accidental parallel deploys to the same env
     concurrency:
       group: apim-deploy-${{ inputs.environment || 'prod' }}
       cancel-in-progress: false
-
     steps:
-      - name: Checkout (for any config files needed at deploy)
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Use Node.js ${{ env.NODE_VERSION }}
@@ -93,25 +87,22 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: apim-build
-          path: ./_apim_build
+          path: ./_downloads
 
-      - name: Show artifact contents (debug)
+      - name: Unzip artifact to deploy dir
         run: |
-          ls -la ./_apim_build || true
-          du -sh ./_apim_build || true
+          mkdir -p _apim_build
+          unzip -o ./_downloads/project_build.zip -d ./_apim_build
+          ls -la _apim_build
 
-      # 🔐 Provide your deployment credentials/endpoint via GitHub Secrets.
-      # Replace variables and flags to match your APIM endpoint & CLI syntax.
       - name: Deploy with apim-cli
         env:
-          # Typical secrets you might set at repo or environment level
-          APIM_BASE_URL: ${{ secrets.APIM_BASE_URL }}            # e.g. https://apim.example.com
-          APIM_ORG:       ${{ secrets.APIM_ORG }}                # optional org/tenant
-          APIM_USERNAME:  ${{ secrets.APIM_USERNAME }}           # if using basic auth
-          APIM_PASSWORD:  ${{ secrets.APIM_PASSWORD }}           # if using basic auth
-          APIM_TOKEN:     ${{ secrets.APIM_TOKEN }}              # if using token/bearer
+          APIM_BASE_URL: ${{ secrets.APIM_BASE_URL }}   # e.g. https://apim.example.com
+          APIM_ORG:       ${{ secrets.APIM_ORG }}
+          APIM_USERNAME:  ${{ secrets.APIM_USERNAME }}
+          APIM_PASSWORD:  ${{ secrets.APIM_PASSWORD }}
+          APIM_TOKEN:     ${{ secrets.APIM_TOKEN }}
         run: |
-          # Adjust to the actual auth method your CLI supports:
           AUTH_FLAGS=""
           if [ -n "$APIM_TOKEN" ]; then
             AUTH_FLAGS="--token \"$APIM_TOKEN\""
@@ -124,15 +115,9 @@ jobs:
             ORG_FLAG="--org \"$APIM_ORG\""
           fi
 
-          # If deploy needs the built folder, point to it (change to your required path/flag)
           BUILD_PATH_FLAG="--path ./_apim_build"
 
-          echo "apim-cli version:"
           npx -y @apistudio/apim-cli --version
-
-          echo "Deploying to: $APIM_BASE_URL"
-          # Example assumes the CLI exposes "deploy project"
-          # Add extra flags your platform requires (stage, env, region, etc.)
           npx -y @apistudio/apim-cli deploy project \
             --url "$APIM_BASE_URL" \
             $ORG_FLAG \
