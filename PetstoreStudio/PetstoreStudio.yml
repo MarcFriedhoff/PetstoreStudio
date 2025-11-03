@@ -1,0 +1,13 @@
+kind: API
+apiVersion: api.ibm.com/v1
+metadata:
+  name: PetstoreStudio
+  namespace: PetstoreStudio
+  version: '1.0'
+  tags: []
+  type: REST
+spec:
+  api-spec:
+    $path: ./PetstoreStudio-spec.json
+  policy-sequence:
+    - $ref: PetstoreStudio:policy:1.0

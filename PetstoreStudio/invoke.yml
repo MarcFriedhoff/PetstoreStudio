@@ -1,0 +1,22 @@
+kind: Invoke
+apiVersion: api.ibm.com/v1
+metadata:
+  name: invoke
+  namespace: PetstoreStudio
+  version: '1.0'
+  tags: []
+  labels:
+    gatewayTypes:
+      - webMethods
+spec:
+  endpoint:
+    http:
+      target:
+        timeout: 30
+        urlType: plain
+        url: https://petstore.swagger.io/v2
+        version: HTTP/1.1
+      verb: CUSTOM
+  extensions:
+    webm-gateway:
+      apiVersion: api.ibm.com/v1

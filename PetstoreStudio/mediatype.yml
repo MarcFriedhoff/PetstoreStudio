@@ -1,7 +1,7 @@
-kind: StagedPolicySequence
+kind: SetMediaType
 apiVersion: api.ibm.com/v1
 metadata:
-  name: policy
+  name: mediatype
   namespace: PetstoreStudio
   version: '1.0'
   tags: []
@@ -9,7 +9,4 @@ metadata:
     gatewayTypes:
       - webMethods
 spec:
-  transport:
-    - $ref: PetstoreStudio:mediatype:1.0
-  routing:
-    - $ref: PetstoreStudio:invoke:1.0
+  defaultContentType: application/json
