@@ -87,13 +87,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: apim-build
-          path: ./_downloads
-
-      - name: Unzip artifact to deploy dir
-        run: |
-          mkdir -p _apim_build
-          unzip -o ./_downloads/project_build.zip -d ./_apim_build
-          ls -la _apim_build
+          path: ./_apim_build
 
       - name: Deploy with apim-cli
         env:
@@ -112,7 +106,7 @@ jobs:
           BUILD_PATH_FLAG="-l ./_apim_build"
 
           npx -y @apistudio/apim-cli --version
-          npx -y @apistudio/apim-cli deploy PetstoreStudio \
+          npx -y @apistudio/apim-cli deploy --all --archive ./_apim_build/project_build.zip \
             -t "$APIM_BASE_URL" \
             $ORG_FLAG \
             $AUTH_FLAGS \
