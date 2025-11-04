@@ -109,7 +109,7 @@ jobs:
             AUTH_FLAGS="--username \"$APIM_USERNAME\" --password \"$APIM_PASSWORD\""
           fi
 
-          BUILD_PATH_FLAG="-l ./_apim_build/PetstoreStudio"
+          BUILD_PATH_FLAG="-l ./_apim_build"
 
           npx -y @apistudio/apim-cli --version
           npx -y @apistudio/apim-cli deploy PetstoreStudio \
