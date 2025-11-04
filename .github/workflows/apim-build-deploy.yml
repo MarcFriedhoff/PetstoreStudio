@@ -91,7 +91,7 @@ jobs:
 
       - name: Deploy with apim-cli
         env:
-          APIM_BASE_URL: ${{ secrets.APIM_BASE_URL }}   # e.g. https://apim.example.com
+          APIM_BASE_URL: "http://apigateway:5555"  # e.g. https://apim.example.com
           APIM_USERNAME:  ${{ secrets.APIM_USERNAME }}
           APIM_PASSWORD:  ${{ secrets.APIM_PASSWORD }}
           APIM_TOKEN:     ${{ secrets.APIM_TOKEN }}
