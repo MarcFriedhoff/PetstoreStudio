@@ -120,6 +120,7 @@ jobs:
           npx -y @apistudio/apim-cli --version
           npx -y @apistudio/apim-cli deploy project \
             --url "$APIM_BASE_URL" \
+            -t "$APIM_BASE_URL" \
             $ORG_FLAG \
             $AUTH_FLAGS \
             $BUILD_PATH_FLAG
