@@ -106,7 +106,7 @@ jobs:
           BUILD_PATH_FLAG="-l ./_apim_build"
 
           npx -y @apistudio/apim-cli --version
-          npx -y @apistudio/apim-cli deploy --all --archive ./_apim_build/project_build.zip -ow \
+          npx -y @apistudio/apim-cli deploy --all --archive ./_apim_build/project_build.zip -ow -d \
             -t "$APIM_BASE_URL" \
             $ORG_FLAG \
             $AUTH_FLAGS \
