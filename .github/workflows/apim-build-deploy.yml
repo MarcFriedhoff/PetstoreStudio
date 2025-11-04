@@ -98,7 +98,6 @@ jobs:
       - name: Deploy with apim-cli
         env:
           APIM_BASE_URL: ${{ secrets.APIM_BASE_URL }}   # e.g. https://apim.example.com
-          APIM_ORG:       ${{ secrets.APIM_ORG }}
           APIM_USERNAME:  ${{ secrets.APIM_USERNAME }}
           APIM_PASSWORD:  ${{ secrets.APIM_PASSWORD }}
           APIM_TOKEN:     ${{ secrets.APIM_TOKEN }}
@@ -110,12 +109,7 @@ jobs:
             AUTH_FLAGS="--username \"$APIM_USERNAME\" --password \"$APIM_PASSWORD\""
           fi
 
-          ORG_FLAG=""
-          if [ -n "$APIM_ORG" ]; then
-            ORG_FLAG="--org \"$APIM_ORG\""
-          fi
-
-          BUILD_PATH_FLAG="--path ./_apim_build"
+          BUILD_PATH_FLAG="-l ./_apim_build"
 
           npx -y @apistudio/apim-cli --version
           npx -y @apistudio/apim-cli deploy project \
